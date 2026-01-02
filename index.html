@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ski-AI Pro | Autonome Wetter-KI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: #020617;
+            min-height: 100vh;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        .ai-glow {
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+        .glass {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+        }
+        .snow-flake {
+            position: fixed; top: -10px; color: white; pointer-events: none;
+            z-index: 0; animation: fall linear infinite;
+        }
+        @keyframes fall { to { transform: translateY(105vh) rotate(360deg); } }
+        
+        .ski-jump {
+            animation: jump 3s infinite ease-in-out;
+        }
+        @keyframes jump {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(-5deg); }
+        }
+    </style>
+</head>
+<body class="p-4 flex flex-col items-center">
+
+    <div class="max-w-lg w-full space-y-6 relative z-10 py-8">
+        <!-- Ski Rider Header -->
+        <header class="text-center space-y-2">
+            <div class="relative inline-block ski-jump">
+                <div class="absolute inset-0 bg-sky-500 blur-2xl opacity-30 animate-pulse"></div>
+                <i class="fas fa-skiing text-6xl text-sky-400 relative"></i>
+            </div>
+            <h1 class="text-3xl font-black tracking-tighter uppercase italic mt-2">Ski-AI <span class="text-sky-400">v2.5</span></h1>
+            <p class="text-slate-400 text-xs font-mono">Autonome Ski-Analyse ohne externe API</p>
+        </header>
+
+        <!-- Main AI Display -->
+        <div id="mainDisplay" class="glass ai-glow rounded-[2.5rem] p-8 text-center relative overflow-hidden">
+            <div id="statusPulse" class="absolute top-4 right-6 flex items-center gap-2">
+                <span class="text-[10px] font-mono text-sky-400 uppercase">KI Analyse aktiv</span>
+                <div class="w-2 h-2 bg-sky-500 rounded-full animate-ping"></div>
+            </div>
+
+            <div id="aiIcon" class="text-8xl mb-6">🗻</div>
+            <h2 id="aiHeadline" class="text-2xl font-bold mb-2 italic">Initialisiere Neural-Net...</h2>
+            <p id="aiReport" class="text-slate-300 text-sm leading-relaxed mb-6">Drücke auf Scannen, um die lokalen atmosphärischen Daten über das neuronale Netz zu analysieren.</p>
+
+            <!-- Specs Grid -->
+            <div class="grid grid-cols-3 gap-2 mt-4">
+                <div class="bg-white/5 p-3 rounded-2xl border border-white/5">
+                    <p class="text-[9px] uppercase text-sky-400 font-bold">Temp</p>
+                    <p id="valTemp" class="text-lg font-black">--°</p>
+                </div>
+                <div class="bg-white/5 p-3 rounded-2xl border border-white/5">
+                    <p class="text-[9px] uppercase text-sky-400 font-bold">Schnee</p>
+                    <p id="valSnow" class="text-lg font-black">--%</p>
+                </div>
+                <div class="bg-white/5 p-3 rounded-2xl border border-white/5">
+                    <p class="text-[9px] uppercase text-sky-400 font-bold">Wind</p>
+                    <p id="valWind" class="text-lg font-black">--</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Assistant Chat -->
+        <div class="glass ai-glow rounded-3xl p-6 space-y-4">
+            <div class="flex items-center gap-3 border-b border-white/10 pb-3">
+                <div class="w-8 h-8 bg-sky-500/20 rounded-full flex items-center justify-center">
+                    <i class="fas fa-user-ninja text-sky-400 text-xs"></i>
+                </div>
+                <span class="text-sm font-bold">Ski-Assistant</span>
+            </div>
+            
+            <div id="chatBox" class="h-32 overflow-y-auto text-sm text-slate-300 space-y-3 font-mono">
+                <div class="p-2 bg-sky-500/5 rounded-lg border-l-2 border-sky-500">
+                    System: Willkommen. Frag mich alles über deine heutige Abfahrt.
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <input type="text" id="chatInput" placeholder="Soll ich heute fahren?" 
+                       class="flex-1 bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-sky-500 text-white">
+                <button onclick="askAI()" class="bg-sky-600 hover:bg-sky-500 px-4 py-2 rounded-xl transition">
+                    <i class="fas fa-paper-plane text-white"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <button onclick="simulateScan()" class="w-full bg-sky-500 hover:bg-sky-400 text-white py-5 rounded-2xl font-black uppercase tracking-widest transition-all transform hover:scale-[1.02] shadow-lg shadow-sky-500/20">
+            <i class="fas fa-satellite-dish mr-2"></i> Umgebung Scannen
+        </button>
+
+        <p class="text-center text-[10px] text-slate-600 uppercase tracking-widest">
+            Powered by Ski-Rider Simulation Engine
+        </p>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const chatInput = document.getElementById('chatInput');
+
+        const responses = [
+            "Die atmosphärische Dichte deutet auf exzellenten Pulverschnee hin. 100% Ski-Empfehlung.",
+            "Achtung: Mein Modell berechnet eine 74%ige Wahrscheinlichkeit für Vereisung am Nachmittag.",
+            "Die thermischen Strömungen sind heute perfekt für Speed-Abfahrten. Wachs deine Ski!",
+            "KI-Warnung: Die Sichtweite sinkt laut meinen Berechnungen bald unter 50 Meter.",
+            "Ein gemütlicher Tag für die Hütte. Die KI erkennt zu hohe Windgeschwindigkeiten."
+        ];
+
+        function addChatMessage(sender, text, type = 'user') {
+            const div = document.createElement('div');
+            div.className = `p-2 rounded-lg ${type === 'ai' ? 'bg-sky-500/10 border-l-2 border-sky-500' : 'text-right opacity-80'}`;
+            div.innerHTML = `<span class="text-[10px] block font-bold text-sky-400 uppercase">${sender}</span> ${text}`;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function askAI() {
+            const val = chatInput.value.trim();
+            if(!val) return;
+
+            addChatMessage('Du', val, 'user');
+            chatInput.value = '';
+
+            setTimeout(() => {
+                const randomResp = responses[Math.floor(Math.random() * responses.length)];
+                addChatMessage('Ski-AI', randomResp, 'ai');
+            }, 800);
+        }
+
+        function simulateScan() {
+            document.getElementById('aiHeadline').innerText = "Scanne Sphäre...";
+            document.getElementById('aiReport').innerText = "Der Skifahrer analysiert die Pistenbedingungen...";
+            
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 10;
+                if(progress > 100) {
+                    clearInterval(interval);
+                    finalizeScan();
+                }
+            }, 150);
+        }
+
+        function finalizeScan() {
+            const temp = Math.floor(Math.random() * (5 - (-15) + 1)) + (-15);
+            const snow = Math.floor(Math.random() * 100);
+            const wind = ["Lauwarm", "Böig", "Sturm", "Still", "Heftig"][Math.floor(Math.random() * 5)];
+            
+            document.getElementById('valTemp').innerText = temp + "°C";
+            document.getElementById('valSnow').innerText = snow + "%";
+            document.getElementById('valWind').innerText = wind;
+
+            let result = { msg: "Abfahrt bereit!", sub: "KI erkennt ideale Verhältnisse.", icon: "⛷️" };
+
+            if (temp > 2) result = { msg: "Sulz-Gefahr", sub: "KI warnt vor Matschbildung.", icon: "🫠" };
+            if (wind === "Sturm") result = { msg: "Hütten-Tag", sub: "Gefahr durch Windböen.", icon: "🌪️" };
+            if (snow > 70) {
+                result = { msg: "Powder-Tag!", sub: "Massiver Neuschnee simuliert.", icon: "❄️" };
+                startSnow();
+            }
+
+            document.getElementById('aiHeadline').innerText = result.msg;
+            document.getElementById('aiReport').innerText = result.sub;
+            document.getElementById('aiIcon').innerText = result.icon;
+
+            addChatMessage('System', `Scan abgeschlossen: ${result.msg}`, 'ai');
+        }
+
+        function startSnow() {
+            document.querySelectorAll('.snow-flake').forEach(f => f.remove());
+            for(let i=0; i<40; i++) {
+                let flake = document.createElement('i');
+                flake.className = 'fas fa-snowflake snow-flake';
+                flake.style.left = Math.random() * 100 + 'vw';
+                flake.style.opacity = Math.random();
+                flake.style.fontSize = (Math.random() * 10 + 5) + 'px';
+                flake.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                document.body.appendChild(flake);
+            }
+        }
+
+        window.onload = () => {
+            setTimeout(simulateScan, 1000);
+        }
+
+        chatInput.onkeypress = (e) => { if(e.key === 'Enter') askAI(); };
+    </script>
+</body>
+</html>
